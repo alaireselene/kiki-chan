@@ -8,8 +8,8 @@ import {
   InteractionType,
   verifyKey,
 } from 'discord-interactions';
-import { AWW_COMMAND, INVITE_COMMAND } from './commands.js';
-import { getCuteUrl } from './reddit.js';
+import { AWW_COMMAND, INVITE_COMMAND } from './commands.ts';
+import { getCuteUrl } from './reddit.ts';
 import { InteractionResponseFlags } from 'discord-interactions';
 
 class JsonResponse extends Response {
