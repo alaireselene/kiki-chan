@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "awwbot",
+      "name": "kiki-chan",
       "dependencies": {
         "discord-interactions": "^4.0.0",
         "itty-router": "^5.0.9",

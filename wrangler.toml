@@ -1,4 +1,4 @@
-name = "awwbot"
+name = "kiki-chan"
 main = "./src/server.ts"
 compatibility_date="2023-05-18"
 
