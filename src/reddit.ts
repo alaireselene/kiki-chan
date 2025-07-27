@@ -1,10 +1,33 @@
+interface RedditVideoData {
+  fallback_url?: string;
+}
+
+interface RedditMedia {
+  reddit_video?: RedditVideoData;
+}
+
+interface RedditPostData {
+  data?: {
+    media?: RedditMedia;
+    secure_media?: RedditMedia;
+    url?: string;
+  };
+  is_gallery?: boolean;
+}
+
+interface RedditResponse {
+  data: {
+    children: RedditPostData[];
+  };
+}
+
 /**
  * Reach out to the reddit API, and get the first page of results from
  * r/aww. Filter out posts without readily available images or videos,
  * and return a random result.
  * @returns The url of an image or video which is cute.
  */
-export async function getCuteUrl() {
+export async function getCuteUrl(): Promise<string> {
   const response = await fetch(redditUrl, {
     headers: {
       'User-Agent': 'justinbeckwith:awwbot:v1.0.0 (by /u/justinblat)',
@@ -22,9 +45,9 @@ export async function getCuteUrl() {
     }
     throw new Error(errorText);
   }
-  const data = await response.json();
+  const data = await response.json() as RedditResponse;
   const posts = data.data.children
-    .map((post) => {
+    .map((post: RedditPostData) => {
       if (post.is_gallery) {
         return '';
       }
@@ -34,9 +57,12 @@ export async function getCuteUrl() {
         post.data?.url
       );
     })
-    .filter((post) => !!post);
+    .filter((post: string | undefined): post is string => !!post);
   const randomIndex = Math.floor(Math.random() * posts.length);
   const randomPost = posts[randomIndex];
+  if (!randomPost) {
+    throw new Error('No suitable posts found');
+  }
   return randomPost;
 }
 
