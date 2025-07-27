@@ -1,2 +1,8 @@
+version: "3"
 agent:
-  authtoken: <your-authtoken>
+    authtoken: <your-authtoken>
+endpoints:
+  - name: kiki-chan
+    url: your-free-domain.ngrok-free.app
+    upstream:
+      url: 8787
