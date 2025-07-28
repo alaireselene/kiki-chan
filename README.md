@@ -5,9 +5,17 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![Bun](https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white)](https://bun.sh/)
 
-Kawaii 🎀 Discord bot with **dual architecture**: Cloudflare Workers for blazing-fast slash commands (`/awwww`, `/invite`) and VPS gateway for reliable presence.
+Kawaii 🎀 Discord bot with **dual architecture**: Cloudflare Workers for blazing-fast slash commands (`/awwww`, `/invite`) and VPS gateway for reliable presence and OpenAI-powered conversations.
 
-**Tech Stack**: TypeScript + Bun + Cloudflare Workers + Discord.js + GitHub Actions CI/CD
+**Tech Stack**: TypeScript + Bun + Cloudflare Workers + Discord.js + OpenAI + GitHub Actions CI/CD
+
+## ✨ Features
+
+- **⚡ Slash Commands**: Fast `/awwww` and `/invite` commands via Cloudflare Workers
+- **🤖 AI Chat**: Mention @Kiki-chan or DM for OpenAI-powered conversations
+- **🌐 Dual Architecture**: Workers for commands, VPS gateway for presence & chat
+- **🚀 Auto Deploy**: Push to main = automatic deployment to both platforms
+- **📱 Always Online**: Reliable Discord presence via VPS gateway bot
 
 ## 🚀 Quick Start
 
@@ -23,7 +31,9 @@ Before starting, you'll need:
 
 2. **Cloudflare Account**: Create a [Cloudflare Worker](https://dash.cloudflare.com/) service
 
-3. **Bun Runtime**: Install [Bun](https://bun.sh/) - our fast JavaScript runtime
+3. **OpenAI API Key**: Get an API key from [Moonshot](https://platform.moonshot.cn/console/api-keys)
+
+4. **Bun Runtime**: Install [Bun](https://bun.sh/) - our fast JavaScript runtime
 
 ### Local Development
 ```bash
@@ -63,6 +73,9 @@ Navigate to `Settings` → `Secrets and variables` → `Actions`:
 CF_API_TOKEN=your_cloudflare_api_token
 CF_ACCOUNT_ID=your_cloudflare_account_id
 
+# OpenAI
+OPENAI_API_KEY=your_openai_api_key
+
 # VPS 
 VPS_HOST=your-server-ip
 VPS_USER=ubuntu
@@ -81,7 +94,10 @@ DISCORD_APPLICATION_ID=your_app_id
 curl -fsSL https://raw.githubusercontent.com/alaireselene/kiki-chan/main/scripts/debian-setup.sh | bash
 
 # Configure and start service
-cd ~/kiki-chan && echo "DISCORD_TOKEN=your_token" > .env
+cd ~/kiki-chan && cat > .env << EOF
+DISCORD_TOKEN=your_token
+OPENAI_API_KEY=your_openai_api_key
+EOF
 sudo ./scripts/setup-systemd.sh
 sudo systemctl enable --now kiki-gateway
 ```
@@ -181,7 +197,7 @@ Push to `main` triggers automated deployment:
 kiki-chan/
 ├── src/
 │   ├── server.ts          # Cloudflare Worker (slash commands)
-│   ├── gateway-bot.ts     # VPS Gateway (Discord presence)  
+│   ├── gateway-bot.ts     # VPS Gateway (Discord presence + OpenAI chat)  
 │   ├── commands.ts        # Command definitions
 │   └── register.ts        # Command registration
 ├── scripts/               # Deployment automation

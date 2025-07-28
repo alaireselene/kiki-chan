@@ -43,6 +43,7 @@ jobs:
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
           DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
           DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
   
   deploy-vps:
     name: Deploy Gateway Bot to VPS
@@ -65,6 +66,7 @@ jobs:
           VPS_USER: ${{ secrets.VPS_USER }}
           VPS_PROJECT_PATH: ${{ secrets.VPS_PROJECT_PATH }}
           DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         run: |
           ssh $VPS_USER@$VPS_HOST << EOF
             set -e
@@ -106,6 +108,7 @@ jobs:
             echo "🔧 Setting up environment..."
             cat > .env << 'ENVEOF'
           DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}"
+          OPENAI_API_KEY="${{ secrets.OPENAI_API_KEY }}"
           NODE_ENV=production
           ENVEOF
             

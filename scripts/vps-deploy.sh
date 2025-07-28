@@ -71,6 +71,19 @@ ssh "$VPS_USER@$VPS_HOST" << EOF
         exit 1
     fi
     
+    # Create environment file (if environment variables are provided)
+    echo "🔧 Setting up environment..."
+    if [ ! -z "\$DISCORD_TOKEN" ]; then
+        cat > .env << 'ENVEOF'
+DISCORD_TOKEN="\$DISCORD_TOKEN"
+OPENAI_API_KEY="\$OPENAI_API_KEY"
+NODE_ENV=production
+ENVEOF
+        echo "✅ Environment file created"
+    else
+        echo "⚠️  No DISCORD_TOKEN provided, skipping .env creation (assuming manual setup)"
+    fi
+    
     # Start the bot as daemon
     echo "🎯 Starting gateway bot..."
     # Determine bun path

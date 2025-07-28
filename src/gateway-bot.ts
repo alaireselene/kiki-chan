@@ -1,6 +1,8 @@
 import { ActivityType, Client, GatewayIntentBits, Guild } from 'discord.js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { handleMessage } from './handlers/messageHandler.js'
+import { initializeOpenAI } from './utils/ai.js'
 
 // Load environment variables from multiple sources
 function loadEnvironment() {
@@ -42,7 +44,9 @@ function loadEnvironment() {
       })
       console.log('✅ Loaded environment from .dev.vars file')
     } catch {
-      console.warn('⚠️  Could not load environment files. Using system environment variables only.')
+      console.warn(
+        '⚠️  Could not load environment files. Using system environment variables only.',
+      )
     }
   }
 }
@@ -51,18 +55,25 @@ function loadEnvironment() {
 loadEnvironment()
 
 // Validate required environment variables
-const requiredEnvVars = ['DISCORD_TOKEN']
-const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+const requiredEnvVars = ['DISCORD_TOKEN', 'OPENAI_API_KEY']
+const missingVars = requiredEnvVars.filter((varName) => !process.env[varName])
 
 if (missingVars.length > 0) {
-  console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`)
+  console.error(
+    `❌ Missing required environment variables: ${missingVars.join(', ')}`,
+  )
   process.exit(1)
 }
 
-// Simple Gateway bot for presence only
+// Initialize OpenAI client
+initializeOpenAI(process.env.OPENAI_API_KEY!)
+
+// Simple Gateway bot for presence and message handling
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
     // Add more intents if you want to handle other events
   ],
 })
@@ -74,6 +85,11 @@ client.once('ready', () => {
   client.user?.setActivity('with Cloudflare Workers', {
     type: ActivityType.Playing, // or ActivityType.Watching, ActivityType.Listening, etc.
   })
+})
+
+// Handle messages and respond with OpenAI
+client.on('messageCreate', async (message) => {
+  await handleMessage(message, client.user?.id ?? '')
 })
 
 // Add error handling for client events
