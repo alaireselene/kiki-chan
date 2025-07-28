@@ -2,55 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug Current File (Bun)",
-      "type": "bun",
-      "request": "launch",
-      "program": "${file}",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "env": {},
-      "strictEnv": false,
-      "watchMode": false,
-      "stopOnEntry": false,
-      "noDebug": false,
-      "runtime": "bun",
-      "runtimeArgs": []
-    },
-    {
-      "name": "Debug Server (src/server.ts)",
+      "name": "Debug Server",
       "type": "bun",
       "request": "launch",
       "program": "${workspaceFolder}/src/server.ts",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "env": {},
-      "strictEnv": false,
-      "watchMode": false,
-      "stopOnEntry": false,
-      "noDebug": false,
-      "runtime": "bun",
-      "runtimeArgs": []
-    },
-    {
-      "name": "Debug Tests (Bun)",
-      "type": "bun",
-      "request": "launch",
-      "program": "${workspaceFolder}/test/server.test.ts",
-      "args": [],
-      "cwd": "${workspaceFolder}",
-      "env": {},
-      "strictEnv": false,
-      "watchMode": false,
-      "stopOnEntry": false,
-      "noDebug": false,
-      "runtime": "bun",
-      "runtimeArgs": ["test"]
-    },
-    {
-      "name": "Debug Register Commands",
-      "type": "bun",
-      "request": "launch",
-      "program": "${workspaceFolder}/src/register.ts",
       "args": [],
       "cwd": "${workspaceFolder}",
       "env": {},
@@ -77,7 +32,7 @@
       "runtimeArgs": []
     },
     {
-      "name": "Start Dev Server (Wrangler)",
+      "name": "Start Server (Wrangler + Ngrok)",
       "type": "node",
       "request": "launch",
       "program": "${workspaceFolder}/node_modules/.bin/wrangler",
@@ -87,44 +42,18 @@
       "env": {
         "NODE_ENV": "development"
       },
+      "preLaunchTask": "ngrok",
       "serverReadyAction": {
         "pattern": "(https?://localhost:\\d+)",
         "uriFormat": "%s",
         "action": "openExternally"
       }
-    },
-    {
-      "name": "Debug Wrangler Dev with Inspector",
-      "type": "node",
-      "request": "launch",
-      "program": "${workspaceFolder}/node_modules/.bin/wrangler",
-      "args": ["dev", "--inspector"],
-      "console": "integratedTerminal",
-      "cwd": "${workspaceFolder}",
-      "env": {
-        "NODE_ENV": "development"
-      }
-    },
-    {
-      "name": "Attach to Bun Debugger",
-      "type": "bun",
-      "request": "attach",
-      "url": "ws://localhost:6499/",
-      "localRoot": "${workspaceFolder}",
-      "remoteRoot": "/app"
-    },
+    }
   ],
   "compounds": [
     {
-      "name": "Dev Server + Ngrok",
-      "configurations": ["Start Dev Server (Wrangler)"],
-      "preLaunchTask": "ngrok",
-      "stopAll": true
-    },
-    {
-      "name": "Full Bot (Workers + Gateway)",
-      "configurations": ["Start Dev Server (Wrangler)", "Debug Gateway Bot"],
-      "preLaunchTask": "ngrok",
+      "name": "🚀 Full Bot (Server + Gateway)",
+      "configurations": ["Start Server (Wrangler + Ngrok)", "Debug Gateway Bot"],
       "stopAll": true
     }
   ]
