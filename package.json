@@ -18,6 +18,8 @@
     "test-setup": "./scripts/test-setup.sh",
     "debug-vps": "./scripts/debug-vps.sh",
     "fix-vps": "./scripts/fix-vps-service.sh",
+    "fix-vps-minimal": "./scripts/fix-vps-minimal.sh",
+    "troubleshoot-systemd": "./scripts/systemd-troubleshoot.sh",
     "vps:deploy": "./scripts/vps-deploy.sh",
     "vps:status": "./scripts/vps-manage.sh status",
     "vps:start": "./scripts/vps-manage.sh start",
