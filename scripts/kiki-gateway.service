@@ -11,8 +11,9 @@ User=root
 Group=root
 WorkingDirectory=/root/kiki-chan
 Environment=NODE_ENV=production
+Environment=PATH=/root/.bun/bin:/usr/local/bin:/usr/bin:/bin
 EnvironmentFile=-/root/kiki-chan/.env
-ExecStart=/usr/local/bin/bun src/gateway-bot.ts
+ExecStart=/root/.bun/bin/bun src/gateway-bot.ts
 ExecReload=/bin/kill -HUP $MAINPID
 Restart=always
 RestartSec=10
@@ -22,11 +23,9 @@ StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=kiki-gateway
 
-# Security settings for Debian
+# Security settings for Debian (relaxed for root user)
 NoNewPrivileges=yes
 PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=read-only
 ReadWritePaths=/root/kiki-chan
 ProtectKernelTunables=yes
 ProtectKernelModules=yes

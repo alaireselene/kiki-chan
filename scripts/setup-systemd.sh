@@ -65,6 +65,10 @@ fi
 
 echo -e "${GREEN}✅ Found Bun at: $BUN_PATH${NC}"
 
+# Set up proper PATH for systemd service
+BUN_DIR=$(dirname "$BUN_PATH")
+SYSTEMD_PATH="$BUN_DIR:/usr/local/bin:/usr/bin:/bin"
+
 # Create the service file
 cat > /etc/systemd/system/kiki-gateway.service << EOF
 [Unit]
@@ -80,6 +84,7 @@ User=$ACTUAL_USER
 Group=$ACTUAL_USER
 WorkingDirectory=$PROJECT_PATH
 Environment=NODE_ENV=production
+Environment=PATH=$SYSTEMD_PATH
 EnvironmentFile=-$PROJECT_PATH/.env
 ExecStart=$BUN_PATH src/gateway-bot.ts
 ExecReload=/bin/kill -HUP \$MAINPID
@@ -94,20 +99,7 @@ SyslogIdentifier=kiki-gateway
 # Security settings for Debian
 NoNewPrivileges=yes
 PrivateTmp=yes
-ProtectSystem=strict
-ProtectHome=read-only
 ReadWritePaths=$PROJECT_PATH
-ProtectKernelTunables=yes
-ProtectKernelModules=yes
-ProtectControlGroups=yes
-RestrictNamespaces=yes
-RestrictRealtime=yes
-RestrictSUIDSGID=yes
-LockPersonality=yes
-MemoryDenyWriteExecute=yes
-
-[Install]
-WantedBy=multi-user.target
 EOF
 
 echo -e "${GREEN}✅ Service file created at /etc/systemd/system/kiki-gateway.service${NC}"
