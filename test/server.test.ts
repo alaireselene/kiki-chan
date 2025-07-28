@@ -136,7 +136,7 @@ describe('Server', () => {
         InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
       )
       expect(body.data.content).toContain(
-        'https://discord.com/oauth2/authorize?client_id=123456789&scope=applications.commands',
+        'https://discord.com/oauth2/authorize?client_id=123456789&permissions=562952100972608&integration_type=0&scope=bot+applications.commands',
       )
       expect(body.data.flags).toBe(InteractionResponseFlags.EPHEMERAL)
     })
