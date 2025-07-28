@@ -50,6 +50,15 @@ function loadEnvironment() {
 // Load environment variables
 loadEnvironment()
 
+// Validate required environment variables
+const requiredEnvVars = ['DISCORD_TOKEN']
+const missingVars = requiredEnvVars.filter(varName => !process.env[varName])
+
+if (missingVars.length > 0) {
+  console.error(`❌ Missing required environment variables: ${missingVars.join(', ')}`)
+  process.exit(1)
+}
+
 // Simple Gateway bot for presence only
 const client = new Client({
   intents: [
@@ -65,6 +74,23 @@ client.once('ready', () => {
   client.user?.setActivity('with Cloudflare Workers', {
     type: ActivityType.Playing, // or ActivityType.Watching, ActivityType.Listening, etc.
   })
+})
+
+// Add error handling for client events
+client.on('error', (error) => {
+  console.error('❌ Discord client error:', error)
+})
+
+client.on('warn', (warning) => {
+  console.warn('⚠️ Discord client warning:', warning)
+})
+
+client.on('disconnect', () => {
+  console.log('🔌 Discord client disconnected')
+})
+
+client.on('reconnecting', () => {
+  console.log('🔄 Discord client reconnecting...')
 })
 
 // Optional: Handle some basic events
@@ -83,11 +109,29 @@ if (!token) {
   process.exit(1)
 }
 
-client.login(token).catch(console.error)
+console.log('🔑 Attempting to login to Discord...')
+client.login(token).catch((error) => {
+  console.error('❌ Failed to login to Discord:', error)
+  process.exit(1)
+})
 
-// Graceful shutdown
-process.on('SIGINT', () => {
-  console.log('👋 Shutting down...')
+// Graceful shutdown handlers
+const gracefulShutdown = () => {
+  console.log('👋 Shutting down gracefully...')
   client.destroy()
   process.exit(0)
+}
+
+process.on('SIGINT', gracefulShutdown)
+process.on('SIGTERM', gracefulShutdown)
+
+// Handle uncaught exceptions and unhandled rejections
+process.on('uncaughtException', (error) => {
+  console.error('💥 Uncaught Exception:', error)
+  gracefulShutdown()
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('💥 Unhandled Rejection at:', promise, 'reason:', reason)
+  gracefulShutdown()
 })
