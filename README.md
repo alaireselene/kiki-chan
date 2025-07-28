@@ -1,164 +1,255 @@
-# Kiki-chan
+# 🤖 Kiki-chan
 
-Kiki-chan is the little sister of Kimi Discord Bot, powered by **bun** and **Cloudflare Workers**. She brings delightful interactions to your Discord server with modern tooling and blazing-fast performance.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![Bun](https://img.shields.io/badge/Bun-000000?logo=bun&logoColor=white)](https://bun.sh/)
 
-Built with the latest technologies, Kiki-chan leverages the speed of bun runtime and the global edge network of Cloudflare Workers for optimal user experience. She runs **Kimi K2**, an open-source LLM model with OpenAI-compatible API.
+Kawaii 🎀 Discord bot with **dual architecture**: Cloudflare Workers for blazing-fast slash commands (`/awwww`, `/invite`) and VPS gateway for reliable presence.
 
-> 🤖 **AI Model**: [Kimi K2](https://github.com/MoonshotAI/Kimi-K2) - Open-source large language model with OpenAI-compatible API
+**Tech Stack**: TypeScript + Bun + Cloudflare Workers + Discord.js + GitHub Actions CI/CD
 
-## Resources used
+## 🚀 Quick Start
 
+### Prerequisites
 
-- [Cloudflare Workers](https://workers.cloudflare.com/) for hosting
-- [Bun](https://bun.sh/) as the JavaScript runtime
-- [itty-router](https://itty.dev/) for HTTP routing
-- [discord-interactions](https://github.com/discord/discord-interactions-js) for Discord API interactions
+Before starting, you'll need:
 
----
+1. **Discord Application**: Create a [Discord app](https://discord.com/developers/applications) with:
+   - `bot` scope with `Send Messages` and `Use Slash Commands` permissions
+   - `applications.commands` scope
+   
+   > 💡 Configure permissions in the `OAuth2` tab using the `URL Generator`
 
-## Project structure
+2. **Cloudflare Account**: Create a [Cloudflare Worker](https://dash.cloudflare.com/) service
 
-Below is a basic overview of the project structure:
+3. **Bun Runtime**: Install [Bun](https://bun.sh/) - our fast JavaScript runtime
 
-```
-├── src
-│   ├── commands.ts           -> Discord slash command definitions
-│   ├── gateway-bot.ts        -> Gateway bot implementation
-│   ├── reddit.ts             -> Reddit API integration
-│   ├── register.ts           -> Command registration with Discord API
-│   ├── server.ts             -> Main Discord app logic and routing
-├── test
-|   ├── server.test.ts        -> Tests for the application
-├── wrangler.toml             -> Cloudflare Workers configuration
-├── package.json              -> Dependencies and scripts (using bun)
-├── biome.json                -> Code formatting and linting configuration
-├── tsconfig.json             -> TypeScript configuration
-├── example.ngrok.yml                 -> example ngrok tunneling configuration
-└── README.md
-```
-
-## Configuring project
-
-Before starting, you'll need a [Discord app](https://discord.com/developers/applications) with the following permissions:
-
-- `bot` with the `Send Messages` and `Use Slash Command` permissions
-- `applications.commands` scope
-
-> ⚙️ Permissions can be configured by clicking on the `OAuth2` tab and using the `URL Generator`. After a URL is generated, you can install the app by pasting that URL into your browser and following the installation flow.
-
-## Creating your Cloudflare worker
-
-Next, you'll need to create a Cloudflare Worker.
-
-- Visit the [Cloudflare dashboard](https://dash.cloudflare.com/)
-- Click on the `Workers` tab, and create a new service using the same name as your Discord bot
-
-## Running locally
-
-> ⚙️ This project uses **bun** as the JavaScript runtime. Make sure you have [bun](https://bun.sh/) installed.
-
-First clone the project:
-
-```
+### Local Development
+```bash
+# Clone and install
 git clone https://github.com/alaireselene/kiki-chan.git
+cd kiki-chan && bun install
+
+# Configure environment
+cp example.dev.vars .dev.vars  # Edit with your Discord credentials
+
+# Register commands and start
+bun run register && bun run start
 ```
 
-Then navigate to its directory and install dependencies:
-
-```
-cd kiki-chan
-bun install
-```
-
-### Local configuration
-
-> 💡 More information about generating and fetching credentials can be found [in the Discord developer documentation](https://discord.com/developers/docs/tutorials/hosting-on-cloudflare-workers#storing-secrets)
-
-Rename `example.dev.vars` to `.dev.vars`, and make sure to set each variable.
-
-**`.dev.vars` contains sensitive data so make sure it does not get checked into git**.
-
-### Register commands
-
-The following command only needs to be run once:
-
-```
-$ bun run register
-```
-
-### Run app
-
-Now you should be ready to start your server:
-
-```
-$ bun run start
-```
-
-### Setting up ngrok
-
-When a user types a slash command, Discord will send an HTTP request to a given endpoint. During local development this can be a little challenging, so we're going to use a tool called `ngrok` to create an HTTP tunnel.
-
-**Prerequisites:**
-1. Create an [ngrok account](https://ngrok.com/) or use an existing one
-2. Set up a fixed domain in **Universal Gateway > Domains** in your ngrok dashboard
-3. Get your authtoken from the ngrok dashboard
-
-**Configuration:**
-Run `bunx ngrok config edit` and configure it as follows:
-
+### ngrok Setup for Local Testing
 ```yaml
+# bunx ngrok config edit
 version: "3"
 agent:
     authtoken: <your-token>
 endpoints:
   - name: kiki-chan
-    url: your-domain.ngrok-free.app  # Replace with your fixed domain
-    upstream:
-      url: 8787
+    url: your-domain.ngrok-free.app
+    upstream: { url: 8787 }
+```
+```bash
+bun run ngrok  # Start tunnel, then update Discord Interactions Endpoint URL
 ```
 
-**Start the tunnel:**
-```
-$ bun run ngrok
-```
+## 🚀 Production Deployment
 
-This will create a tunnel using your configured fixed domain. Your ngrok URL will be consistent across sessions (e.g., `https://your-domain.ngrok-free.app`). 
+### 1. GitHub Secrets Setup
+Navigate to `Settings` → `Secrets and variables` → `Actions`:
 
-Copy this HTTPS link and head back to the Discord Developer Dashboard, then update the "Interactions Endpoint URL" for your bot:
+```env
+# Cloudflare
+CF_API_TOKEN=your_cloudflare_api_token
+CF_ACCOUNT_ID=your_cloudflare_account_id
 
-![interactions-endpoint](https://user-images.githubusercontent.com/534619/157510959-6cf0327a-052a-432c-855b-c662824f15ce.png)
+# VPS 
+VPS_HOST=your-server-ip
+VPS_USER=ubuntu
+VPS_PROJECT_PATH=/home/ubuntu/kiki-chan
+VPS_SSH_KEY=your_private_ssh_key_content
 
-This is the process we'll use for local testing and development. When you've published your bot to Cloudflare, you will _want to update this field to use your Cloudflare Worker URL._
-
-## Deploying app
-
-This repository can be deployed to Cloudflare Workers when new changes are ready. To deploy manually, run `bun run publish`, which uses the `wrangler deploy` command under the hood.
-
-### Available Scripts
-
-- `bun run start` - Start the development server with wrangler
-- `bun run ngrok` - Start ngrok tunnel for local development
-- `bun run gateway` - Run the gateway bot
-- `bun run test` - Run tests
-- `bun run lint` - Lint the code
-- `bun run fix` - Fix linting issues automatically
-- `bun run register` - Register Discord slash commands
-- `bun run publish` - Deploy to Cloudflare Workers
-
-### Storing secrets
-
-The credentials in `.dev.vars` are only applied locally. The production service needs access to credentials from your app:
-
-```
-$ wrangler secret put DISCORD_TOKEN
-$ wrangler secret put DISCORD_PUBLIC_KEY
-$ wrangler secret put DISCORD_APPLICATION_ID
+# Discord
+DISCORD_TOKEN=your_bot_token
+DISCORD_PUBLIC_KEY=your_public_key
+DISCORD_APPLICATION_ID=your_app_id
 ```
 
-## Questions?
+### 2. VPS Setup (Automated)
+```bash
+# One-line setup for Debian/Ubuntu VPS
+curl -fsSL https://raw.githubusercontent.com/alaireselene/kiki-chan/main/scripts/debian-setup.sh | bash
 
-Feel free to post an issue in the repository or reach out for support!
+# Configure and start service
+cd ~/kiki-chan && echo "DISCORD_TOKEN=your_token" > .env
+sudo ./scripts/setup-systemd.sh
+sudo systemctl enable --now kiki-gateway
+```
+
+### 3. Cloudflare Secrets
+```bash
+cd kiki-chan
+wrangler secret put DISCORD_TOKEN
+wrangler secret put DISCORD_PUBLIC_KEY
+wrangler secret put DISCORD_APPLICATION_ID
+```
+
+### 4. SSH Key for CI/CD
+```bash
+ssh-keygen -t rsa -b 4096 -C "github-actions@kiki-chan" -f ~/.ssh/kiki-chan
+cat ~/.ssh/kiki-chan.pub >> ~/.ssh/authorized_keys
+cat ~/.ssh/kiki-chan  # Add this to VPS_SSH_KEY secret
+```
+## 🔧 Local Development Setup
+
+### Setting up ngrok for Local Testing
+
+During development, Discord needs to send HTTP requests to your local server. We use ngrok to create a secure tunnel.
+
+**Prerequisites:**
+1. Create an [ngrok account](https://ngrok.com/)
+2. Set up a fixed domain in **Universal Gateway > Domains**
+3. Get your authtoken from the ngrok dashboard
+
+**Configuration:**
+
+1. **Configure ngrok:**
+   ```bash
+   bunx ngrok config edit
+   ```
+
+2. **Add this configuration:**
+   ```yaml
+   version: "3"
+   agent:
+       authtoken: <your-token>
+   endpoints:
+     - name: kiki-chan
+       url: your-domain.ngrok-free.app  # Replace with your fixed domain
+       upstream:
+         url: 8787
+   ```
+
+3. **Start the tunnel:**
+   ```bash
+   bun run ngrok
+   ```
+
+4. **Update Discord settings:**
+   - Copy your ngrok HTTPS URL (e.g., `https://your-domain.ngrok-free.app`)
+   - Go to Discord Developer Dashboard
+   - Update the "Interactions Endpoint URL" for your bot
+
+   ![Discord Interactions Endpoint](https://user-images.githubusercontent.com/534619/157510959-6cf0327a-052a-432c-855b-c662824f15ce.png)
+
+> 💡 **Tip**: When deployed to production, update this URL to your Cloudflare Worker URL
+
+## 📝 Scripts & Commands
+
+### Development
+```bash
+bun run start      # Start dev server
+bun run gateway    # Run gateway bot locally  
+bun run ngrok      # Start ngrok tunnel
+bun run register   # Register Discord commands
+bun run test       # Run tests
+bun run lint       # Lint code
+```
+
+### Production Management
+```bash
+bun run publish        # Deploy to Cloudflare Workers
+bun run vps:status     # Check VPS bot status
+bun run vps:restart    # Restart VPS bot
+bun run vps:logs       # View logs
+bun run vps:tail       # Follow logs
+
+# Systemd (if configured)
+sudo systemctl status kiki-gateway
+sudo journalctl -u kiki-gateway -f
+```
+
+## 🔧 CI/CD Pipeline
+
+Push to `main` triggers automated deployment:
+1. **Test & Lint** - Validates code quality
+2. **Deploy Cloudflare** - Updates slash commands globally  
+3. **Deploy VPS** - Updates gateway bot via SSH
+
+## 📁 Project Structure
+```
+kiki-chan/
+├── src/
+│   ├── server.ts          # Cloudflare Worker (slash commands)
+│   ├── gateway-bot.ts     # VPS Gateway (Discord presence)  
+│   ├── commands.ts        # Command definitions
+│   └── register.ts        # Command registration
+├── scripts/               # Deployment automation
+├── .github/workflows/     # CI/CD pipeline
+└── wrangler.toml         # Cloudflare config
+```
+
+## 🛠️ Troubleshooting
+
+### Common Issues
+| Problem | Solution |
+|---------|----------|
+| Bot appears offline | Check `bun run vps:status` and Discord token |
+| Slash commands not working | Run `bun run register` and verify Cloudflare deployment |
+| CI/CD fails | Verify all GitHub secrets are set correctly |
+| Permission denied | Run `chmod +x scripts/*.sh` |
+
+### Debug Commands  
+```bash
+# Validate setup
+bun run test-setup
+
+# Check Discord API connectivity
+curl -H "Authorization: Bot $DISCORD_TOKEN" https://discord.com/api/v10/applications/@me
+
+# Monitor resources
+ps aux | grep "bun.*gateway-bot"
+sudo journalctl -u kiki-gateway --since "1 hour ago"
+```
+
+### Manual Recovery
+```bash
+# Kill all bot processes
+pkill -f "bun.*gateway-bot"
+
+# Restart everything
+cd ~/kiki-chan && bun run vps:restart
+
+# Check logs for errors
+bun run vps:logs
+```
+
+## 🔒 Security
+
+- Generate unique SSH keys per deployment
+- Store secrets in environment variables, never in code  
+- Regularly rotate Discord tokens
+- Keep VPS updated: `sudo apt update && sudo apt upgrade -y`
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/name`
+3. Test changes: `bun run test && bun run lint`
+4. Submit pull request
+
+## 📞 Support
+
+- 🐛 [Bug Reports](https://github.com/alaireselene/kiki-chan/issues)
+- 💡 [Feature Requests](https://github.com/alaireselene/kiki-chan/discussions)  
+- 📧 [Email](mailto:contact@truongson.dev)
 
 ---
 
-*Kiki-chan - Little sister of Kimi, powered by bun and Cloudflare Workers 🚀*
+<div align="center">
+
+**Made with 💖 by [Truong-Son Nguyen](https://github.com/alaireselene)**
+
+[⭐ Star](https://github.com/alaireselene/kiki-chan) • [🍴 Fork](https://github.com/alaireselene/kiki-chan/fork) • [📚 Issues](https://github.com/alaireselene/kiki-chan/issues)
+
+</div>
