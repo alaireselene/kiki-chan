@@ -14,13 +14,22 @@
     "lint": "bunx biome lint src/",
     "register": "bun src/register.ts",
     "publish": "wrangler deploy",
-    "types": "bunx wrangler types"
+    "types": "bunx wrangler types",
+    "test-setup": "./scripts/test-setup.sh",
+    "vps:deploy": "./scripts/vps-deploy.sh",
+    "vps:status": "./scripts/vps-manage.sh status",
+    "vps:start": "./scripts/vps-manage.sh start",
+    "vps:stop": "./scripts/vps-manage.sh stop",
+    "vps:restart": "./scripts/vps-manage.sh restart",
+    "vps:logs": "./scripts/vps-manage.sh logs",
+    "vps:tail": "./scripts/vps-manage.sh tail"
   },
   "keywords": [],
   "author": "Truong-Son Nguyen <contact@truongson.dev>",
   "license": "MIT",
   "dependencies": {
     "discord-interactions": "^4.0.0",
+    "discord.js": "^14.21.0",
     "itty-router": "^5.0.9"
   },
   "devDependencies": {

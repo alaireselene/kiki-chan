@@ -1,5 +1,6 @@
 /**
  * The core server that runs on a Cloudflare worker.
+ * Handles Discord slash commands only - optimized for speed and efficiency.
  */
 
 import {

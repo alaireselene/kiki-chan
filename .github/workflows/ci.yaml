@@ -14,6 +14,7 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun test
+  
   lint:
     runs-on: ubuntu-latest
     steps:
@@ -23,7 +24,9 @@ jobs:
           bun-version: latest
       - run: bun install
       - run: bun lint
-  release:
+  
+  deploy-cloudflare:
+    name: Deploy to Cloudflare Workers
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     needs: [test, lint]
@@ -37,3 +40,101 @@ jobs:
         env:
           CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          DISCORD_PUBLIC_KEY: ${{ secrets.DISCORD_PUBLIC_KEY }}
+          DISCORD_APPLICATION_ID: ${{ secrets.DISCORD_APPLICATION_ID }}
+  
+  deploy-vps:
+    name: Deploy Gateway Bot to VPS
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    needs: [test, lint]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+      
+      - name: Deploy to VPS via SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_PROJECT_PATH: ${{ secrets.VPS_PROJECT_PATH }}
+          DISCORD_TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        run: |
+          ssh $VPS_USER@$VPS_HOST << EOF
+            set -e
+            echo "🚀 Starting deployment..."
+            
+            # Navigate to project directory
+            cd ${{ secrets.VPS_PROJECT_PATH }}
+            
+            # Stop existing process if running (try systemd first, then fallback to manual)
+            echo "⏹️  Stopping existing bot..."
+            if systemctl is-active --quiet kiki-gateway 2>/dev/null; then
+              echo "Stopping systemd service..."
+              sudo systemctl stop kiki-gateway || echo "Failed to stop systemd service"
+            else
+              echo "Stopping manual process..."
+              pkill -f "bun.*gateway-bot" || echo "No existing process found"
+            fi
+            
+            # Pull latest changes
+            echo "📥 Pulling latest changes..."
+            git fetch origin
+            git reset --hard origin/main
+            
+            # Install dependencies
+            echo "📦 Installing dependencies..."
+            # Try different bun locations for Debian compatibility
+            if command -v bun >/dev/null 2>&1; then
+              bun install
+            elif [ -f "\$HOME/.bun/bin/bun" ]; then
+              \$HOME/.bun/bin/bun install
+            elif [ -f "/usr/local/bin/bun" ]; then
+              /usr/local/bin/bun install
+            else
+              echo "❌ Bun not found!"
+              exit 1
+            fi
+            
+            # Create environment file
+            echo "🔧 Setting up environment..."
+            cat > .env << 'ENVEOF'
+          DISCORD_TOKEN="${{ secrets.DISCORD_TOKEN }}"
+          NODE_ENV=production
+          ENVEOF
+            
+            # Start the bot (prefer systemd if available)
+            echo "🎯 Starting gateway bot..."
+            if [ -f "/etc/systemd/system/kiki-gateway.service" ]; then
+              echo "Starting with systemd..."
+              sudo systemctl start kiki-gateway
+              sudo systemctl --no-pager status kiki-gateway
+            else
+              echo "Starting as daemon process..."
+              # Determine bun path
+              BUN_CMD="bun"
+              if [ -f "\$HOME/.bun/bin/bun" ]; then
+                BUN_CMD="\$HOME/.bun/bin/bun"
+              elif [ -f "/usr/local/bin/bun" ]; then
+                BUN_CMD="/usr/local/bin/bun"
+              fi
+              
+              nohup \$BUN_CMD src/gateway-bot.ts > gateway-bot.log 2>&1 &
+              echo \$! > kiki-gateway.pid
+              echo "📋 PID saved to kiki-gateway.pid"
+            fi
+            
+            echo "✅ Deployment completed successfully!"
+            echo "📊 Process status:"
+            if systemctl is-active --quiet kiki-gateway 2>/dev/null; then
+              systemctl --no-pager status kiki-gateway --lines=3
+            else
+              ps aux | grep "bun.*gateway-bot" | grep -v grep || echo "Process check failed"
+            fi
+          EOF

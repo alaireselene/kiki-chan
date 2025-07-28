@@ -2,31 +2,53 @@ import { ActivityType, Client, GatewayIntentBits, Guild } from 'discord.js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
 
-// Load environment variables from .dev.vars
-function loadDevVars() {
+// Load environment variables from multiple sources
+function loadEnvironment() {
+  // Try to load .env file first (production)
   try {
-    const devVarsPath = join(process.cwd(), '.dev.vars')
-    const content = readFileSync(devVarsPath, 'utf-8')
+    const envPath = join(process.cwd(), '.env')
+    const content = readFileSync(envPath, 'utf-8')
 
     content.split('\n').forEach((line) => {
       const trimmed = line.trim()
-      if (trimmed && !trimmed.startsWith('#')) {
-        // Parse YAML-style format: KEY: "value"
-        const match = trimmed.match(/^([^:]+):\s*"([^"]*)"$/)
-        if (match && match[1] && match[2] !== undefined) {
-          const key = match[1].trim()
-          const value = match[2]
-          process.env[key] = value
+      if (trimmed && !trimmed.startsWith('#') && trimmed.includes('=')) {
+        const [key, ...valueParts] = trimmed.split('=')
+        const value = valueParts.join('=').replace(/^["']|["']$/g, '') // Remove quotes
+        if (key && value !== undefined) {
+          process.env[key.trim()] = value
         }
       }
     })
-  } catch (error) {
-    console.warn('⚠️  Could not load .dev.vars file:', (error as Error).message)
+    console.log('✅ Loaded environment from .env file')
+  } catch {
+    console.log('ℹ️  No .env file found, trying .dev.vars...')
+
+    // Fallback to .dev.vars (development)
+    try {
+      const devVarsPath = join(process.cwd(), '.dev.vars')
+      const content = readFileSync(devVarsPath, 'utf-8')
+
+      content.split('\n').forEach((line) => {
+        const trimmed = line.trim()
+        if (trimmed && !trimmed.startsWith('#')) {
+          // Parse YAML-style format: KEY: "value"
+          const match = trimmed.match(/^([^:]+):\s*"([^"]*)"$/)
+          if (match && match[1] && match[2] !== undefined) {
+            const key = match[1].trim()
+            const value = match[2]
+            process.env[key] = value
+          }
+        }
+      })
+      console.log('✅ Loaded environment from .dev.vars file')
+    } catch {
+      console.warn('⚠️  Could not load environment files. Using system environment variables only.')
+    }
   }
 }
 
 // Load environment variables
-loadDevVars()
+loadEnvironment()
 
 // Simple Gateway bot for presence only
 const client = new Client({
