@@ -7,6 +7,17 @@ set -e
 
 echo "🧪 Testing Kiki-chan deployment setup..."
 
+# Show system information
+echo "🖥️  System Information:"
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    echo "  OS: $NAME $VERSION"
+elif [ -f /etc/debian_version ]; then
+    echo "  OS: Debian $(cat /etc/debian_version)"
+else
+    echo "  OS: Unknown ($(uname -s) $(uname -r))"
+fi
+
 # Test 1: Check if required files exist
 echo "📁 Checking project structure..."
 required_files=(

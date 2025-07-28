@@ -25,11 +25,23 @@ ACTUAL_USER=${SUDO_USER:-$USER}
 USER_HOME=$(eval echo ~$ACTUAL_USER)
 PROJECT_PATH="$USER_HOME/kiki-chan"
 
+# Detect OS for better compatibility
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_INFO="$NAME $VERSION"
+elif [ -f /etc/debian_version ]; then
+    OS_INFO="Debian $(cat /etc/debian_version)"
+elif command -v lsb_release >/dev/null 2>&1; then
+    OS_INFO=$(lsb_release -d -s)
+else
+    OS_INFO="Debian-based (unknown version)"
+fi
+
 echo -e "${YELLOW}📋 Configuration:${NC}"
 echo "  User: $ACTUAL_USER"
 echo "  Home: $USER_HOME"
 echo "  Project Path: $PROJECT_PATH"
-echo "  OS: $(lsb_release -d -s 2>/dev/null || echo "Debian-based")"
+echo "  OS: $OS_INFO"
 
 # Check if project directory exists
 if [ ! -d "$PROJECT_PATH" ]; then

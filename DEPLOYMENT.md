@@ -158,6 +158,9 @@ wrangler secret put DISCORD_APPLICATION_ID
 
 ### Local Development
 ```bash
+# Test deployment setup
+bun run test-setup
+
 # Start Cloudflare Worker dev server
 bun run start
 
@@ -277,6 +280,19 @@ sudo journalctl -u kiki-gateway -f
 ```
 
 ## 🛠️ Troubleshooting
+
+### Setup Validation
+```bash
+# Run the setup test to validate your environment
+bun run test-setup
+
+# This will check:
+# - Project structure
+# - Script syntax
+# - Dependencies
+# - TypeScript compilation
+# - Environment configuration
+```
 
 ### Bot Not Starting
 ```bash

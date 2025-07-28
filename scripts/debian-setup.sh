@@ -14,19 +14,50 @@ NC='\033[0m'
 
 echo -e "${BLUE}🚀 Setting up Debian VPS for Kiki-chan Gateway Bot${NC}"
 
+# Detect the system
+if [ -f /etc/os-release ]; then
+    . /etc/os-release
+    OS_NAME="$NAME"
+    OS_VERSION="$VERSION"
+elif [ -f /etc/debian_version ]; then
+    OS_NAME="Debian"
+    OS_VERSION=$(cat /etc/debian_version)
+else
+    OS_NAME="Unknown"
+    OS_VERSION="Unknown"
+fi
+
+echo -e "${BLUE}🔍 Detected system: $OS_NAME $OS_VERSION${NC}"
+
 # Check if running on Debian/Ubuntu
-if ! command -v apt >/dev/null 2>&1; then
+if [ ! -f /etc/debian_version ] && [ ! -f /etc/lsb-release ]; then
     echo -e "${RED}❌ This script is designed for Debian/Ubuntu systems${NC}"
+    echo "Detected system files:"
+    ls -la /etc/*release* /etc/*version* 2>/dev/null || echo "No release files found"
+    exit 1
+fi
+
+# Double-check with package manager
+if ! command -v apt >/dev/null 2>&1 && ! command -v apt-get >/dev/null 2>&1; then
+    echo -e "${RED}❌ Neither apt nor apt-get found. This script requires a Debian-based system${NC}"
     exit 1
 fi
 
 # Update system packages
 echo -e "${YELLOW}📦 Updating system packages...${NC}"
-sudo apt update && sudo apt upgrade -y
+if command -v apt >/dev/null 2>&1; then
+    sudo apt update && sudo apt upgrade -y
+else
+    sudo apt-get update && sudo apt-get upgrade -y
+fi
 
 # Install essential packages
 echo -e "${YELLOW}📦 Installing essential packages...${NC}"
-sudo apt install -y curl git unzip build-essential
+if command -v apt >/dev/null 2>&1; then
+    sudo apt install -y curl git unzip build-essential
+else
+    sudo apt-get install -y curl git unzip build-essential
+fi
 
 # Install Bun
 echo -e "${YELLOW}🥖 Installing Bun...${NC}"
