@@ -14,7 +14,7 @@ let openai: OpenAI
 export function initializeOpenAI(apiKey: string) {
   openai = new OpenAI({
     apiKey: apiKey,
-    baseURL: 'https://api.moonshot.cn/v1', // Use Moonshot API base URL
+      baseURL: 'https://api.moonshot.ai/v1', // Use Moonshot API base URL
   })
 }
 
@@ -178,7 +178,16 @@ function parseAIResponse(response: string): AIResponse {
         .join('\n')
         .trim()
 
-    result.text = responseText || 'yo whats good 🌟'
+    // Clean up any remaining username prefixes that the AI might include
+    let cleanedText = responseText || 'yo whats good 🌟'
+
+    // Remove "kiki-chan:" or "kiki:" prefixes (case insensitive)
+    cleanedText = cleanedText.replace(/^kiki(-chan)?:\s*/i, '').trim()
+
+    // Remove any other potential username patterns at the start
+    cleanedText = cleanedText.replace(/^[a-zA-Z0-9_-]+:\s*/, '').trim()
+
+    result.text = cleanedText || 'yo whats good 🌟'
 
     console.log(`🔍 Parsing result:`, {
         hasText: !!result.text,
@@ -259,7 +268,7 @@ export async function handleVoteSelection(
     if (!voteData) {
         console.log('❌ Vote data not found!')
         try {
-            await interaction.reply({
+            await interaction.followUp({
                 content: '❌ This vote is no longer active.',
                 ephemeral: true,
             })
@@ -272,25 +281,6 @@ export async function handleVoteSelection(
 
     console.log(`✅ Found vote data: "${voteData.question}"`)
 
-    // First, acknowledge the interaction immediately
-    try {
-        console.log('🔄 Attempting to reply to interaction...')
-        await interaction.reply({
-            content: 'okay babe i take it from u ✨',
-            ephemeral: true,
-        })
-        console.log('✅ Successfully replied to interaction')
-    } catch (error) {
-        console.error('❌ Error acknowledging interaction:', error)
-        console.error('❌ Error details:', {
-            name: (error as any)?.name,
-            message: (error as any)?.message,
-            code: (error as any)?.code,
-            status: (error as any)?.status,
-        })
-        return
-    }
-
     const selectedValue = interaction.values[0]
     const optionIndex = parseInt(selectedValue.replace('option_', ''))
     const selectedOption = voteData.options[optionIndex]
@@ -301,64 +291,15 @@ export async function handleVoteSelection(
         `🗳️ ${voterUsername} voted for option ${optionIndex + 1}: "${selectedOption}"`,
     )
 
-    // Generate AI response about the vote choice
+    // Simple acknowledgment without AI processing
     try {
-        console.log('🤖 Generating AI response...')
-        // Get AI response about this vote choice
-        const aiResponse = await getAIResponse(
-            `Someone voted on my poll! ${voterUsername} chose "${selectedOption}" for the question "${voteData.question}". I should react to their choice!`,
-            [],
-            {
-                username: voterUsername,
-                charisma: 50, // Default charisma for vote responses
-                vibe: 'neutral',
-                totalMessages: 1,
-            },
-        )
-
-        // Send Kiki's reaction using interaction.followUp (correct way)
-        let voteResponse = `🗳️ ${aiResponse.text}`
-
-        try {
-            await interaction.followUp({
-                content: voteResponse,
-                ephemeral: false // Make it visible to everyone
-            })
-            console.log(
-                `📊 Kiki responded to ${voterUsername}'s vote: "${voteResponse.substring(0, 50)}..."`,
-            )
-        } catch (followUpError) {
-            console.error('❌ Error sending followUp response:', followUpError)
-            // Fallback to channel.send if followUp fails
-            if ('send' in voteData.pollMessage.channel) {
-                await voteData.pollMessage.channel.send(voteResponse)
-            }
-        }
-
-        // React to the vote with an emoji if AI suggests it
-        if (aiResponse.reaction) {
-            await voteData.pollMessage.react(aiResponse.reaction)
-        }
+        await interaction.followUp({
+            content: `✨ ${voterUsername} voted for: **${selectedOption}**`,
+            ephemeral: false
+        })
+        console.log(`📊 Acknowledged ${voterUsername}'s vote for "${selectedOption}"`)
     } catch (error) {
-        console.error('❌ Error handling vote selection:', error)
-
-        // Send a fallback message using followUp
-        try {
-            await interaction.followUp({
-                content: '✨ Thanks for voting!',
-                ephemeral: false
-            })
-        } catch (fallbackError) {
-            console.error('❌ Error sending fallback followUp:', fallbackError)
-            // Last resort fallback to channel.send
-            try {
-                if ('send' in voteData.pollMessage.channel) {
-                    await voteData.pollMessage.channel.send('✨ Thanks for voting!')
-                }
-            } catch (channelError) {
-                console.error('❌ Error sending fallback message:', channelError)
-            }
-        }
+        console.error('❌ Error acknowledging vote:', error)
     }
 }
 
@@ -464,6 +405,7 @@ export async function getAIResponse(
         vibe: string
         totalMessages: number
     },
+    recentConversationSummary?: string,
 ): Promise<AIResponse> {
   const systemPrompt = loadSystemPrompt()
 
@@ -484,7 +426,19 @@ You can adjust the user's charisma based on their message quality and your inter
 - Consider current charisma level and total interactions in your calculation
 - Formula suggestion: More interactions = smaller changes, extreme charisma = pull toward center
 - Engaging/kind messages: +1 to +5, Boring messages: -1 to 0, Violating/rude: -3 to -10
-- You can also change their vibe using VIBE: new_vibe_here`
+- You can also change their vibe using VIBE: new_vibe_here
+
+🚨 CRITICAL REMINDER: Never start your response with "kiki-chan:" or any username. You ARE kiki-chan, just speak directly!`
+    }
+
+    // Add recent conversation context if provided
+    if (recentConversationSummary) {
+        enhancedSystemPrompt += `
+
+## Recent Channel Conversation Context:
+${recentConversationSummary}
+
+Note: This shows who said what recently in the channel. Use this to understand the conversation flow and respond appropriately to different people, but remember to never start your response with "kiki-chan:" or any username prefix.`
     }
 
   const messages = [
@@ -509,29 +463,6 @@ You can adjust the user's charisma based on their message quality and your inter
     console.log('📝 Parsed AI Response:', parsedResponse)
 
     return parsedResponse
-}
-
-// Check if message should trigger bot response
-export function shouldRespond(message: Message, botUserId: string): boolean {
-    // Don't respond to own messages (prevent Kiki from replying to herself)
-    if (message.author.id === botUserId) return false
-
-  // Always respond to DMs
-  if (message.guild === null) return true
-
-  // Check if bot is mentioned
-  if (message.mentions.has(botUserId)) return true
-
-  // Check if message contains "kiki" (case insensitive)
-  if (message.content.toLowerCase().includes('kiki')) return true
-
-  // Check if this is a reply to the bot's message
-  if (message.reference?.messageId) {
-    // We'll need to fetch the referenced message to check if it's from the bot
-    return true // For now, assume it might be a reply to bot
-  }
-
-  return false
 }
 
 // Clean message content (remove mentions, etc.)
