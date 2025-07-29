@@ -30,13 +30,17 @@
   "dependencies": {
     "discord-interactions": "^4.0.0",
     "discord.js": "^14.21.0",
+    "drizzle-orm": "^0.44.3",
     "itty-router": "^5.0.9",
     "openai": "^5.10.2"
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/bun": "latest",
+    "better-sqlite3": "^12.2.0",
     "dotenv": "^16.0.3",
+    "drizzle-kit": "^0.31.4",
     "ngrok": "^5.0.0-beta.2",
     "wrangler": "^4.13.2"
   },

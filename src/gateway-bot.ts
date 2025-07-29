@@ -1,6 +1,7 @@
 import { ActivityType, Client, GatewayIntentBits, Guild } from 'discord.js'
 import { readFileSync } from 'fs'
 import { join } from 'path'
+import { initializeDatabase } from './db/index.js'
 import { handleMessage } from './handlers/messageHandler.js'
 import { initializeOpenAI } from './utils/ai.js'
 
@@ -68,13 +69,19 @@ if (missingVars.length > 0) {
 // Initialize OpenAI client
 initializeOpenAI(process.env.OPENAI_API_KEY!)
 
+// Initialize database
+initializeDatabase().catch((error) => {
+  console.error('❌ Failed to initialize database:', error)
+  process.exit(1)
+})
+
 // Simple Gateway bot for presence and message handling
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    // Add more intents if you want to handle other events
+    GatewayIntentBits.GuildMessageReactions,
   ],
 })
 
@@ -90,6 +97,45 @@ client.once('ready', () => {
 // Handle messages and respond with OpenAI
 client.on('messageCreate', async (message) => {
   await handleMessage(message, client.user?.id ?? '')
+})
+
+// Handle select menu interactions for vote monitoring
+client.on('interactionCreate', async (interaction) => {
+  console.log(`🔄 RAW INTERACTION RECEIVED: type=${interaction.type}, isStringSelectMenu=${interaction.isStringSelectMenu()}`)
+  console.log(`🔄 Interaction details: customId=${(interaction as any).customId}, user=${interaction.user?.username}`)
+
+  // Only handle StringSelectMenu interactions
+  if (!interaction.isStringSelectMenu()) {
+    console.log('⚠️ Not a StringSelectMenu interaction, ignoring')
+    return
+  }
+
+  console.log(`🔄 Processing StringSelectMenu: customId=${interaction.customId}`)
+
+  try {
+    // Import handleVoteSelection dynamically to avoid circular dependencies
+    const { handleVoteSelection } = await import('./utils/ai.js')
+    await handleVoteSelection(interaction, client.user?.id ?? '')
+  } catch (error) {
+    console.error('❌ Error in interactionCreate handler:', error)
+    console.error('❌ Interaction details:', {
+      customId: interaction.customId,
+      user: interaction.user?.username,
+      type: interaction.type
+    })
+
+    // Try to send error response if interaction hasn't been responded to
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: '❌ Something went wrong processing your selection.',
+          ephemeral: true
+        })
+      }
+    } catch (replyError) {
+      console.error('❌ Failed to send error response:', replyError)
+    }
+  }
 })
 
 // Add error handling for client events

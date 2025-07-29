@@ -1,82 +1,165 @@
-import { Message } from 'discord.js';
+import { Message } from 'discord.js'
+import {
+    addInteraction,
+    getOrCreateUserProfile,
+    getUserInteractionHistory,
+    updateUserCharisma,
+    updateUserVibe,
+} from '../db/utils.js'
 import {
     cleanMessageContent,
     createVote,
     getAIResponse,
     reactToMessage,
-    shouldRespond,
-} from '../utils/ai.js';
-
-// Store conversation history (in production, you might want to use a database)
-const conversationHistory = new Map<
-  string,
-  Array<{ role: string; content: string }>
->()
+} from '../utils/ai.js'
 
 export async function handleMessage(
   message: Message,
   botUserId: string,
 ): Promise<void> {
-  // Check if we should respond to this message
-  if (!shouldRespond(message, botUserId)) return
+    // Don't respond to own messages (prevent Kiki from replying to herself)
+    if (message.author.id === botUserId) {
+        return
+    }
 
-  // Check if this is a reply to the bot
-  let isReplyToBot = false
-  if (message.reference?.messageId) {
+    // Determine interaction type and if we should consider responding
+    const isMentioned = message.mentions.has(botUserId)
+    const containsKiki = message.content.toLowerCase().includes('kiki')
+    const isDM = message.guild === null
+
+    // Exit early only if none of these conditions are met
+    if (!isMentioned && !containsKiki && !isDM && !message.reference) {
+        console.log(`🚫 Ignoring message from ${message.author.username}: no trigger conditions met`)
+        return
+    }
+
+    // Get interaction type
+    let interactionType: 'mention' | 'reply' | 'dm' | 'kiki_name'
+    if (isDM) interactionType = 'dm'
+    else if (isMentioned) interactionType = 'mention'
+    else if (containsKiki) interactionType = 'kiki_name'
+    else if (message.reference) interactionType = 'reply'
+    else interactionType = 'kiki_name'
+
+    console.log(`📥 Processing ${interactionType} from ${message.author.username}: "${message.content}"`)
+
     try {
-      const referencedMessage = await message.channel.messages.fetch(
-        message.reference.messageId,
-      )
-      isReplyToBot = referencedMessage.author.id === botUserId
-    } catch (error) {
-      console.error('Error fetching referenced message:', error)
-    }
-  }
+        // Get or create user profile
+        const userProfile = await getOrCreateUserProfile(message.author.id, message.author.username)
+        console.log(`👤 User profile: ${userProfile.username} (Charisma: ${userProfile.charisma}, Vibe: ${userProfile.vibe}, Total: ${userProfile.totalMessages})`)
 
-  // Final check: only respond if mentioned, contains "kiki", is DM, or is reply to bot
-  const isMentioned = message.mentions.has(botUserId)
-  const containsKiki = message.content.toLowerCase().includes('kiki')
-  const isDM = message.guild === null
+        // Clean the message content
+        const cleanContent = cleanMessageContent(message.content, isMentioned)
 
-  if (!isMentioned && !containsKiki && !isDM && !isReplyToBot) return
+        // Show typing indicator - the AI will decide whether to respond or not
+        if ('sendTyping' in message.channel) {
+            await message.channel.sendTyping()
+        }
 
-  try {
-    // Show typing indicator
-    if ('sendTyping' in message.channel) {
-      await message.channel.sendTyping()
-    }
+        if (!cleanContent) {
+            const response = 'Hewwo~! (✿◠‿◠) How can Kiki-chan help you today? 💖'
+            await message.reply(response)
+            await addInteraction(
+                message.author.id,
+                cleanContent,
+                response,
+                interactionType,
+            )
+            return
+        }
 
-    // Clean the message content
-    let cleanContent = cleanMessageContent(message.content, isMentioned)
+        // Get user's conversation history
+        const userHistory = await getUserInteractionHistory(message.author.id, 5)
 
-    if (!cleanContent) {
-      await message.reply('Hewwo~! (✿◠‿◠) How can Kiki-chan help you today? 💖')
-      return
-    }
+        // Get recent channel context (last 8 messages)
+        const channelMessages = await message.channel.messages.fetch({ limit: 8 })
+        const channelContext = Array.from(channelMessages.values())
+            .reverse()
+            .map((msg) => ({
+                role: msg.author.id === botUserId ? 'assistant' : 'user',
+                content: `${msg.author.username}: ${msg.content}`,
+            }))
 
-    // Send initial "thinking" message
-    const thinkingMessage = await message.reply('🤔 hmmm let me see...')
+        // Build conversation context combining user history and channel context
+        const conversationContext = [
+            // Add user's personal history with Kiki
+            ...userHistory
+                .reverse()
+                .map((interaction) => [
+                    { role: 'user', content: interaction.userMessage },
+                    ...(interaction.botResponse
+                        ? [{ role: 'assistant', content: interaction.botResponse }]
+                        : []),
+                ])
+                .flat(),
+            // Add recent channel context
+            ...channelContext,
+        ]
 
-    // Get conversation history for this user/channel
-    const contextKey = message.guild
-      ? `${message.guild.id}-${message.channel.id}`
-      : `dm-${message.author.id}`
-    let history = conversationHistory.get(contextKey) || []
+        // Get AI response with personalized context and user profile
+        console.log(`🤖 Sending to AI: "${cleanContent}"`)
+        const aiResponse = await getAIResponse(cleanContent, conversationContext, {
+            username: userProfile.username,
+            charisma: userProfile.charisma,
+            vibe: userProfile.vibe || 'neutral',
+            totalMessages: userProfile.totalMessages
+        })
 
-    // Limit history to last 10 messages to avoid token limits
-    if (history.length > 10) {
-      history = history.slice(-10)
-    }
+        console.log(`🧠 AI Response Analysis:`)
+        console.log(`   Full Raw Response: "${aiResponse.text}"`)
+        console.log(`   Charisma Change: ${aiResponse.charismaChange || 'none'}`)
+        console.log(`   New Vibe: ${aiResponse.newVibe || 'none'}`)
+        console.log(`   Reaction: ${aiResponse.reaction || 'none'}`)
+        console.log(`   Vote: ${aiResponse.vote ? 'yes' : 'none'}`)
 
-    // Get AI response
-    const aiResponse = await getAIResponse(cleanContent, history)
+        // Check if AI decided not to respond (silent treatment)
+        if (!aiResponse.text?.trim() && !aiResponse.vote && !aiResponse.reaction) {
+            console.log(
+                `🤐 Kiki-chan gives ${message.author.username} the silent treatment (charisma: ${userProfile.charisma})`,
+            )
 
-    // Update conversation history
-    history.push({ role: 'user', content: cleanContent })
-    if (aiResponse.text) {
-      history.push({ role: 'assistant', content: aiResponse.text })
-    }
-    conversationHistory.set(contextKey, history)
+            // Still apply charisma changes even if not responding
+            if (aiResponse.charismaChange !== undefined) {
+                await updateUserCharisma(message.author.id, aiResponse.charismaChange)
+                console.log(
+                    `🧠 ${message.author.username}: Silent charisma change (${aiResponse.charismaChange > 0 ? '+' : ''}${aiResponse.charismaChange})`,
+                )
+            }
+
+            // Log ignored interaction
+            await addInteraction(
+                message.author.id,
+                cleanContent,
+                null,
+                interactionType,
+            )
+
+            // Remove typing indicator by doing nothing (it will disappear naturally)
+            return
+        }
+
+        // Send initial "thinking" message only if we're going to respond
+        let finalProfile = userProfile
+        if (aiResponse.charismaChange !== undefined) {
+            const aiUpdatedProfile = await updateUserCharisma(message.author.id, aiResponse.charismaChange)
+            if (aiUpdatedProfile) {
+                finalProfile = aiUpdatedProfile
+                console.log(
+                    `📊 ${message.author.username}: Charisma ${userProfile.charisma} → ${finalProfile.charisma} (${aiResponse.charismaChange > 0 ? '+' : ''}${aiResponse.charismaChange})`,
+                )
+            }
+        } else {
+            console.log(`📊 ${message.author.username}: No charisma change applied`)
+        }
+
+        // Update vibe if AI determined a change
+        if (aiResponse.newVibe) {
+            const newVibeProfile = await updateUserVibe(message.author.id, aiResponse.newVibe)
+            if (newVibeProfile) {
+                finalProfile = newVibeProfile
+                console.log(`🎭 ${message.author.username}: Vibe changed from "${userProfile.vibe}" to "${aiResponse.newVibe}"`)
+            }
+        }
 
     // Handle special commands first
     if (aiResponse.vote) {
@@ -85,57 +168,85 @@ export async function handleMessage(
         aiResponse.vote.question,
         aiResponse.vote.options,
       )
+
+        // Add interaction record for vote creation
+        await addInteraction(
+            message.author.id,
+            cleanContent,
+            `Created vote: ${aiResponse.vote.question}`,
+            interactionType, // Use the existing interaction type
+        )
+
+        console.log(`🗳️ Created vote and recorded interaction for ${message.author.username}`)
+        return // Skip text response when creating a vote
     }
 
     if (aiResponse.reaction) {
       await reactToMessage(message, aiResponse.reaction)
     }
 
-    // Edit the thinking message with the actual response
-    if (aiResponse.text && aiResponse.text.trim()) {
-      // Split long messages if needed (Discord has 2000 char limit)
-      const maxLength = 2000
-      if (aiResponse.text.length <= maxLength) {
-        await thinkingMessage.edit(aiResponse.text)
-      } else {
-        // Split the message into chunks
-        const chunks = []
-        for (let i = 0; i < aiResponse.text.length; i += maxLength) {
-          chunks.push(aiResponse.text.slice(i, i + maxLength))
+        // Prepare the final response
+        let finalResponse = aiResponse.text
+        console.log(`💬 Preparing response: "${finalResponse?.substring(0, 100)}${finalResponse && finalResponse.length > 100 ? '...' : ''}"`)
+
+        // Add personality based on user's vibe and charisma (using final profile after AI changes)
+        if (finalProfile.charisma >= 80) {
+            finalResponse = `${finalResponse} 💖` // High charisma gets hearts
+            console.log(`💖 Added heart emoji for high charisma (${finalProfile.charisma})`)
+        } else if (finalProfile.charisma <= 20) {
+            // Low charisma gets shorter, less enthusiastic responses
+            finalResponse = finalResponse.split('.')[0] || finalResponse
+            console.log(`😑 Shortened response for low charisma (${finalProfile.charisma})`)
         }
 
-        // Edit the first message
-        if (chunks[0]) {
-          await thinkingMessage.edit(chunks[0])
-        }
+        // Send the actual response without editing a thinking message
+        if (finalResponse && finalResponse.trim()) {
+            const maxLength = 2000
+            if (finalResponse.length <= maxLength) {
+                await message.reply(finalResponse)
+            } else {
+                // Split the message into chunks
+                const chunks = []
+                for (let i = 0; i < finalResponse.length; i += maxLength) {
+                    chunks.push(finalResponse.slice(i, i + maxLength))
+                }
 
-        // Send additional chunks
-        for (let i = 1; i < chunks.length; i++) {
-          const chunk = chunks[i]
-          if ('send' in message.channel && chunk) {
-            await message.channel.send(chunk)
-          }
-        }
-      }
+                // Send each chunk as a separate message
+                for (const chunk of chunks) {
+                    if ('send' in message.channel && chunk) {
+                        await message.channel.send(chunk)
+                    }
+                }
+            }
+
+            // Log successful interaction
+            await addInteraction(
+                message.author.id,
+                cleanContent,
+                finalResponse,
+                interactionType,
+            )
     } else if (!aiResponse.vote && !aiResponse.reaction) {
-      // If no text and no special commands, provide a fallback
-      await thinkingMessage.edit(
-        'Kiki-chan is a bit confused... Could you ask in a different way? (｡•́︿•̀｡)💭',
-      )
+            // If no text and no special commands, provide a fallback
+            const fallback =
+                'Kiki-chan is a bit confused... Could you ask in a different way? (｡•́︿•̀｡)💭'
+            await message.reply(fallback)
+            await addInteraction(
+                message.author.id,
+                cleanContent,
+                fallback,
+                interactionType,
+            )
     } else if (aiResponse.vote || aiResponse.reaction) {
-      // If only special commands, delete the thinking message with a kawaii touch
-      await thinkingMessage.edit(
-        'Kiki-chan did something special for you! (｡♥‿♥｡)',
-      )
-      setTimeout(
-        () =>
-          thinkingMessage.delete().catch(() => {
-            // Ignore errors when deleting the message (e.g., already deleted)
-          }),
-        1500,
-      )
-      // If only special commands, delete the thinking message
-      await thinkingMessage.delete()
+            // If only special commands, show a cute message
+            const specialResponse = 'Kiki-chan did something special for you! (｡♥‿♥｡)'
+            await message.reply(specialResponse)
+            await addInteraction(
+                message.author.id,
+                cleanContent,
+                specialResponse,
+                interactionType,
+            )
     }
   } catch (error) {
     console.error('❌ Error handling message:', error)
