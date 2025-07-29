@@ -3,3 +3,4 @@ coverage
 .dev.vars
 .wrangler
 ngrok.yml
+kiki-chan.db
